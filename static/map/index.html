@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>照片库</title>
+    <link rel="stylesheet" type="text/css" href="css/hui.css"/>
+    <style>
+        #progress {
+            height: 10px;
+            width: 500px;
+            border: 1px solid gold;
+            position: relative;
+            border-radius: 5px;
+        }
+
+        #progress .progress-item {
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: chartreuse;
+            border-radius: 5px;
+            transition: width .3s linear;
+        }
+
+
+        #hui-black-mask {
+            width: 100%;
+            display: none;
+        }
+
+        #hui-black-mask #file {
+            width: 100%;
+            position: absolute;
+        }
+    </style>
+</head>
+<body style="background:#F4F5F6;">
+<header class="hui-header" onclick="openUploadWindow()">
+    <h1>filecoin 图库</h1>
+    <div style="color: white; width: 100px; margin: 12px">上传图片</div>
+</header>
+
+<div id="hui-black-mask">
+    <!-- 演示消息内容 -->
+    <div id="hui-black-mask-content">
+        <div id="hui-black-action">
+            <div id="hui-black-close"></div>
+        </div>
+        <input type="file" id="file" name="file" accept="image/*"
+               style=" background: none; outline: none; border: none; width: 200px; height:200px"/>
+        <img id="upimg" src="img/pz.jpg" width="100%"/>
+        <br><br>
+        <button onclick="uploadImg()" type="button" class="hui-button hui-primary hui-fl hui-button-large"
+                style="margin-left:10px;">确认上传
+        </button>
+    </div>
+</div>
+
+
+<div class=" hui-wrap">
+    <div class="hui-center-title"><h1>瀑布流样例</h1></div>
+    <div style="padding:10px 0px;" id="waterfall"></div>
+</div>
+
+
+<script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+<script type="text/javascript" charset="UTF-8" src="js/hui.js"></script>
+<script type="text/javascript" charset="UTF-8" src="js/hui-water-fall.js"></script>
+<script type="text/javascript" charset="UTF-8" src="js/hui-refresh-load-more.js"></script>
+<script type="text/javascript">
+    //第一步 初始化瀑布流dom布局
+    var Waterfall
+
+    var page = 1;
+    getList();
+
+    hui.blackMask();
+
+    //模拟远程获取数据 随机对数据进行排序
+    function getList() {
+
+        hui.ajax({
+            url: '/img/list?p=' + page,
+            type: 'POST',
+            data: {},
+            beforeSend: function () {
+                hui.loading();
+            },
+            complete: function () {
+                hui.closeLoading();
+            },
+            success: function (res) {
+                console.log("page:", page)
+                if (page === 1) {
+                    $("#waterfall").html('')
+                    Waterfall = new huiWaterfall('#waterfall');
+                }
+                page++
+                console.log(JSON.stringify(res));
+                if (res.code == 'ok') {
+                    //组合dom
+                    var str = '';
+                    for (var i = 0; i < res.data.length; i++) {
+                        str += '<div class="hui-water-items">' +
+                            '<a href="javascript:hui.toast(\'hi\');">' +
+                            '<div class="hui-water-items-img"><img src="/dfs/img?n=' + res.data[i].id + '" /></div>' +
+                            '<div class="hui-water-items-text" style="font-size: 0.01rem">日期： ' + res.data[i].createTime + ' </div>' +
+                            '</a></div>';
+                    }
+                    Waterfall.addItems(str);
+                    hui.endLoadMore();
+                } else if (res.code == 0) {
+                    hui.endLoadMore(true);
+                } else {
+                    hui.toast(res.code)
+                }
+            },
+            error: function (e) {
+                console.log(JSON.stringify(e));
+                hui.iconToast('读取消息失败', 'warn');
+            },
+            'backType': "JSON"
+        });
+
+
+    }
+
+    hui.loadMore(getList);
+    //监听选择上传图片
+    document.querySelector("#file").addEventListener("change", function () {
+        document.getElementById('upimg').src = window.URL.createObjectURL(document.getElementById('file').files[0]);
+    })
+
+    //打开上传窗口
+    function openUploadWindow() {
+        document.getElementById('upimg').src = 'img/pz.jpg'
+        hui.shwoBlackMasker()
+    }
+
+    //上传文件
+    function uploadImg() {
+        hui.loading('图片上传中...');
+        //获取到选中的文件
+        var file = document.querySelector("#file").files[0];
+        //创建formdata对象
+        var formdata = new FormData();
+        formdata.append("file", file);
+        //创建xhr，使用ajax进行文件上传
+        var xhr = new XMLHttpRequest();
+        xhr.open("post", "/dfs/upload");
+        //回调
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                console.log("res:", xhr.responseText)
+                try {
+                    let res = JSON.parse(xhr.responseText)
+                    if (res.code == 'ok') {
+                        hui.loading(false, true) //关闭loading
+                        hui.toast("上传成功")
+                        $("#hui-black-mask").hide()
+                        page = 1
+                        getList()
+                    } else {
+                        hui.loading(false, true) //关闭loading
+                        hui.toast("上传失败")
+                    }
+                } catch (e) {
+                    console.log(e)
+                    hui.loading(false, true) //关闭loading
+                    hui.toast("上传失败")
+                }
+
+            }
+        }
+        //获取上传的进度
+        xhr.upload.onprogress = function (event) {
+            if (event.lengthComputable) {
+                var percent = event.loaded / event.total * 100;
+                hui.loading('上传进度：' + percent + "%");
+            }
+        }
+        //将formdata上传
+        xhr.send(formdata);
+    }
+
+
+</script>
+</body>
+</html>
