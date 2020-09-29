@@ -100,7 +100,7 @@ func img() {
 	http.HandleFunc("/dfs/img", func(response http.ResponseWriter, request *http.Request) {
 		query := request.URL.Query()
 		n := query["n"][0]
-		println("n:", n)
+		//println("n:", n)
 		//response.Write([]byte(jsonStr))
 		//查找数据库
 		rows, err := db.Query_sql("select name from dfs where id='" + n + "'")
@@ -109,7 +109,7 @@ func img() {
 				defer rows.Close()
 				var name string
 				_ = rows.Scan(&name)
-				println("name:", name)
+				//println("name:", name)
 				file, err := os.Open(name)
 				defer file.Close()
 				if err == nil {
