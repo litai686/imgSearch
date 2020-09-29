@@ -15,7 +15,7 @@ import (
 func main() {
 
 	task := goticker.New(100, false)
-	_ = task.AddTaskCallBackFunc(fileCoinUpFile, 3, "cli") // 每间隔3秒执行一次 test 函数
+	_ = task.AddTaskCallBackFunc(fileCoinUpFile, 10, "cli") // 每间隔3秒执行一次 test 函数
 
 	httpServer.Start()
 

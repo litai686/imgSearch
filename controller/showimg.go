@@ -9,8 +9,9 @@ import (
 
 //注册路由
 func init() {
-	println("注册路由,优先级高:controller/test")
+	println("注册路由,优先级高:show,statistics")
 	show()
+	statistics()
 }
 
 func show() {
@@ -51,6 +52,31 @@ func show() {
 				resMap["code"] = "0"
 			}
 			resMap["data"] = ls_group
+			defer rows.Close()
+		} else {
+			resMap["code"] = "系统错误"
+		}
+		resStr, _ := json.Marshal(resMap)
+		response.Write(resStr)
+	})
+}
+
+//统计
+func statistics() {
+	http.HandleFunc("/img/statistics", func(response http.ResponseWriter, request *http.Request) {
+		resMap := make(map[string]interface{})
+		resMap["code"] = "ok"
+		rows, err := db.Query_sql("select count(*) as count,sum(size) as size from dfs")
+		if err == nil {
+			var count string
+			var size string
+			if rows.Next() {
+				_ = rows.Scan(&count, &size)
+				resMap["data"] = map[string]interface{}{
+					"count": count,
+					"size":  size,
+				}
+			}
 			defer rows.Close()
 		} else {
 			resMap["code"] = "系统错误"

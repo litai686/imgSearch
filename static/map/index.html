@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>照片库</title>
+    <title>忆图云</title>
     <link rel="stylesheet" type="text/css" href="css/hui.css"/>
     <style>
         #progress {
@@ -38,30 +38,42 @@
 </head>
 <body style="background:#F4F5F6;">
 <header class="hui-header" onclick="openUploadWindow()">
-    <h1>忆图云-存储在ipfs上的照片</h1>
-    <div style="color: white; width: 130px; margin: 12px">上传图片</div>
+    <div style="color: white; width: 150px; margin: 12px; font-weight: bolder">忆图云</div>
+    <h1></h1>
+    <div style="color: white; width: 180px; margin: 12px 15px;">上传图片</div>
 </header>
 
-<div id="hui-black-mask">
-    <!-- 演示消息内容 -->
-    <div id="hui-black-mask-content">
-        <div id="hui-black-action">
-            <div id="hui-black-close"></div>
-        </div>
-        <input type="file" id="file" name="file" accept="image/*"
-               style=" background: none; outline: none; border: none; width: 200px; height:200px"/>
-        <img id="upimg" src="img/pz.jpg" width="100%"/>
-        <br><br>
-        <button onclick="uploadImg()" type="button" class="hui-button hui-primary hui-fl hui-button-large"
-                style="margin-left:10px;">确认上传
-        </button>
+<div class="hui-wrap">
+    <div class="hui-center-title" style="text-align: center">
+        <h1>基于ipfs存储的图片库</h1>
+        <br>
+        <h4 id="statistics">图片总数：1000 张 | 存储算力：1000G</h4>
+    </div>
+    <div style="padding:20px 0px;" id="waterfall">
+
     </div>
 </div>
 
 
-<div class=" hui-wrap">
-    <div class="hui-center-title"><h1>瀑布流样例</h1></div>
-    <div style="padding:10px 0px;" id="waterfall"></div>
+<div id="hui-black-mask">
+    <!-- 演示消息内容 -->
+    <div id="hui-black-mask-content" style="width: 100%; text-align: center">
+        <div id="hui-black-action" style="">
+            <div id="hui-black-close"></div>
+        </div>
+        <div id="upimgWindow">
+            <input type="file" id="file" name="file" accept="image/*"
+                   style=" background: none; outline: none; border: none; width: 200px; height:200px"/>
+            <img id="upimg" src="img/pz.jpg" style="max-width:100%; max-height:600px;"/>
+            <br><br>
+            <button onclick="uploadImg()" type="button" class="hui-button hui-primary hui-fl hui-button-large"
+                    style="margin-left:10px;">确认上传
+            </button>
+        </div>
+        <div id="showImg">
+            <img id="upimg" src="img/pz.jpg" width="100%"/>
+        </div>
+    </div>
 </div>
 
 
@@ -75,7 +87,7 @@
 
     var page = 1;
     getList();
-
+    statistics(); //统计
     hui.blackMask();
 
     //模拟远程获取数据 随机对数据进行排序
@@ -86,10 +98,10 @@
             type: 'POST',
             data: {},
             beforeSend: function () {
-                hui.loading();
+                //hui.loading();
             },
             complete: function () {
-                hui.closeLoading();
+                //hui.closeLoading();
             },
             success: function (res) {
                 console.log("page:", page)
@@ -103,11 +115,13 @@
                     //组合dom
                     var str = '';
                     for (var i = 0; i < res.data.length; i++) {
-                        str += '<div class="hui-water-items">' +
-                            '<a href="javascript:hui.toast(\'hi\');">' +
-                            '<div class="hui-water-items-img"><img src="/dfs/img?n=' + res.data[i].id + '" /></div>' +
-                            '<div class="hui-water-items-text" style="font-size: 0.01rem">日期： ' + res.data[i].createTime + ' </div>' +
-                            '</a></div>';
+                        let imgUrl = "/dfs/img?n=" + res.data[i].id
+                        let datetime = res.data[i].createTime
+                        str += `<div class="hui-water-items">
+                             <a href="javascript:void(0);"  onclick="openImg('${imgUrl}')">
+                             <div class="hui-water-items-img"><img src="${imgUrl} " /></div>
+                             <div class="hui-water-items-text" style="font-size: 0.01rem">日期：${datetime} </div>
+                            </a></div>`;
                     }
                     Waterfall.addItems(str);
                     hui.endLoadMore();
@@ -135,6 +149,8 @@
 
     //打开上传窗口
     function openUploadWindow() {
+        $("#upimgWindow").show()
+        $("#showImg").hide()
         document.getElementById('upimg').src = 'img/pz.jpg'
         hui.shwoBlackMasker()
     }
@@ -159,12 +175,13 @@
                     if (res.code == 'ok') {
                         hui.loading(false, true) //关闭loading
                         hui.toast("上传成功")
+                        statistics()
                         $("#hui-black-mask").hide()
                         page = 1
                         getList()
                     } else {
                         hui.loading(false, true) //关闭loading
-                        hui.toast("上传失败")
+                        hui.toast(res.code)
                     }
                 } catch (e) {
                     console.log(e)
@@ -186,6 +203,42 @@
     }
 
 
+    //打开图片
+    function openImg(url) {
+        console.log(url)
+        $("#upimgWindow").hide()
+        hui.shwoBlackMasker()
+        $("#showImg").show()
+        $("#showImg img").attr('src', url)
+    }
+
+    //统计
+    function statistics() {
+        hui.ajax({
+            url: '/img/statistics',
+            type: 'POST',
+            data: {},
+            beforeSend: function () {
+
+            },
+            complete: function () {
+
+            },
+            success: function (res) {
+                console.log(JSON.stringify(res))
+                if (res.code == 'ok') {
+                    let count = res.data.count
+                    let size = (parseFloat(res.data.size) / 1024 / 1024).toFixed(2) + " MB"
+                    $("#statistics").text("图片总数：" + count + " 张 | 存储算力：" + size)
+                }
+            },
+            error: function (e) {
+                console.log(JSON.stringify(e));
+                hui.iconToast('读取消息失败', 'warn');
+            },
+            'backType': "JSON"
+        });
+    }
 </script>
 </body>
 </html>

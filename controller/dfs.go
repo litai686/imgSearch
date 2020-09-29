@@ -32,19 +32,19 @@ func upload() {
 		uploadPath := "./upload/" + time.Now().Format("20060102") + "/"
 		_ = request.ParseMultipartForm(32 << 20)
 		file, handler, err := request.FormFile("file")
-		defer file.Close()
-		if handler.Size > 1024*1024*20 {
-			resMap["code"] = "上传失败，图片尺寸太大"
-			resStr, _ := json.Marshal(resMap)
-			response.Write(resStr)
-			return
-		}
 		if err != nil {
 			resMap["code"] = "上传失败 10001"
 			resStr, _ := json.Marshal(resMap)
 			response.Write(resStr)
 			println("错误1", err.Error())
 		} else {
+			defer file.Close()
+			if handler.Size > 1024*1024*20 {
+				resMap["code"] = "上传失败，图片尺寸太大"
+				resStr, _ := json.Marshal(resMap)
+				response.Write(resStr)
+				return
+			}
 			hash := sha256.New()
 			if _, err := io.Copy(hash, file); err != nil {
 				println("计算sha256错误")
@@ -54,11 +54,34 @@ func upload() {
 			}
 			sha256 := fmt.Sprintf("%x", hash.Sum(nil))
 			println("文件sha256:" + sha256)
+			//查看是否有重复文件
+			rows_s, err := db.Query_sql("select pid from dfs where id='" + sha256 + "'")
+			if err != nil {
+				resMap["code"] = "上传失败 10003"
+				resStr, _ := json.Marshal(resMap)
+				response.Write(resStr)
+				rows_s.Close()
+				return
+			}
+			if rows_s.Next() {
+				resMap["code"] = "上传失败，请不上传重复图片哦"
+				resStr, _ := json.Marshal(resMap)
+				response.Write(resStr)
+				rows_s.Close()
+				return
+			}
 
 			isMakeDir := makeDir(uploadPath) //创建文件夹
 			if isMakeDir {
 				//获取文件后缀
 				fileType := path.Ext(handler.Filename)
+				if fileType != ".jpg" && fileType != ".jepg" && fileType != ".png" {
+					println("当前文件后缀名：", fileType)
+					resMap["code"] = "图片格式不正确，暂时只支持jpg格式"
+					resStr, _ := json.Marshal(resMap)
+					response.Write(resStr)
+					return
+				}
 				//重新命名文件
 				curTime := strconv.Itoa(int(time.Now().UnixNano()))
 				println("当前时间戳：", curTime)
@@ -74,9 +97,8 @@ func upload() {
 					defer file2.Close()
 					fileSize, err := io.Copy(f, file2)
 					if err == nil {
-
 						//存数据库
-						insertId, err := db.Insert_sql("insert into dfs (id,name,createTime) values ('" + sha256 + "','" + uploadPath + filename + "','" + time.Now().Format("2006-01-02 15:04:05") + "')")
+						insertId, err := db.Insert_sql("insert into dfs (id,name,createTime,size) values ('" + sha256 + "','" + uploadPath + filename + "','" + time.Now().Format("2006-01-02 15:04:05") + "','" + strconv.FormatInt(fileSize, 10) + "')")
 						if err == nil && insertId > 0 {
 							resMap["code"] = "ok"
 							resMap["data"] = fileSize
