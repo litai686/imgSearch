@@ -37,6 +37,7 @@ func upload() {
 			resStr, _ := json.Marshal(resMap)
 			response.Write(resStr)
 			println("错误1", err.Error())
+			return
 		} else {
 			defer file.Close()
 			if handler.Size > 1024*1024*20 {
@@ -51,23 +52,23 @@ func upload() {
 				resMap["code"] = "上传失败 10002"
 				resStr, _ := json.Marshal(resMap)
 				response.Write(resStr)
+				return
 			}
 			sha256 := fmt.Sprintf("%x", hash.Sum(nil))
 			println("文件sha256:" + sha256)
 			//查看是否有重复文件
 			rows_s, err := db.Query_sql("select pid from dfs where id='" + sha256 + "'")
+			defer rows_s.Close()
 			if err != nil {
 				resMap["code"] = "上传失败 10003"
 				resStr, _ := json.Marshal(resMap)
 				response.Write(resStr)
-				rows_s.Close()
 				return
 			}
 			if rows_s.Next() {
 				resMap["code"] = "上传失败，请不上传重复图片哦"
 				resStr, _ := json.Marshal(resMap)
 				response.Write(resStr)
-				rows_s.Close()
 				return
 			}
 
@@ -126,9 +127,9 @@ func img() {
 		//response.Write([]byte(jsonStr))
 		//查找数据库
 		rows, err := db.Query_sql("select name from dfs where id='" + n + "'")
+		defer rows.Close()
 		if err == nil {
 			if rows.Next() {
-				defer rows.Close()
 				var name string
 				_ = rows.Scan(&name)
 				//println("name:", name)

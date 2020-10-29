@@ -37,6 +37,7 @@ func device_list() {
 
 		ls_group := []interface{}{}
 		rows, err := db.Query_sql("select id,device_name,device_local_ip,device_state,device_soft_version,device_start_time,device_remark,device_type from ipfs_device where device_type=0")
+		defer rows.Close()
 		if err == nil {
 			i := 0
 			for rows.Next() {

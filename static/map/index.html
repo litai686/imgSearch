@@ -157,9 +157,14 @@
 
     //上传文件
     function uploadImg() {
+        if (document.querySelector("#file").files.length === 0) {
+            hui.alert("请选择图片")
+        }
+
         hui.loading('图片上传中...');
         //获取到选中的文件
         var file = document.querySelector("#file").files[0];
+
         //创建formdata对象
         var formdata = new FormData();
         formdata.append("file", file);
@@ -176,19 +181,21 @@
                         hui.loading(false, true) //关闭loading
                         hui.toast("上传成功")
                         statistics()
-                        $("#hui-black-mask").hide()
                         page = 1
                         getList()
                     } else {
                         hui.loading(false, true) //关闭loading
                         hui.toast(res.code)
                     }
+                    document.getElementById('file').value = ''
+                    $("#hui-black-mask").hide()
                 } catch (e) {
                     console.log(e)
                     hui.loading(false, true) //关闭loading
                     hui.toast("上传失败")
+                    document.getElementById('file').value = ''
+                    $("#hui-black-mask").hide()
                 }
-
             }
         }
         //获取上传的进度
